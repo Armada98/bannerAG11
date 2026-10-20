@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bannière AG11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+/* Layout: aperçu de la bannière en grand, puis deux champs et un bouton. Thème sombre unique, style esport. */
+:root {
+  color-scheme: dark;
+  --bg: #120a10;
+  --surface: #1d1119;
+  --line: #3a2333;
+  --fg: #f6e9f1;
+  --muted: #b49aaa;
+  --pink: #ff3ea5;
+  --pink-soft: #ff8fcb;
+  --display: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --ui: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--ui);
+  font-size: 15px;
+  margin: 0;
+}
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 22px;
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(28px, 5vw, 44px);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1;
+}
+h1 span { color: var(--pink); }
+.tag {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.preview {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px #000, 0 18px 50px -20px rgba(255, 62, 165, 0.45);
+}
+canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+}
+.field { display: grid; gap: 6px; min-width: 0; }
+label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+input[type="text"] {
+  width: 100%;
+  font: 600 18px/1.2 var(--ui);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input[type="text"]::placeholder { color: #6e5565; }
+input[type="text"]:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 62, 165, 0.25); }
+button {
+  font: 700 15px/1 var(--ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #1a0612;
+  background: var(--pink);
+  border: 0;
+  border-radius: 4px;
+  padding: 15px 22px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .1s;
+}
+button:hover { background: var(--pink-soft); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+button[hidden] { display: none !important; }
+.status { min-height: 1.4em; font-size: 14px; color: var(--muted); margin: 0; }
+.status.ok { color: var(--pink-soft); }
+@media (max-width: 720px) {
+  form { grid-template-columns: 1fr; }
+  button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AG11 <span>E-Sport</span></h1>
+    <div class="tag">Crée ta bannière joueur</div>
+  </header>
+
+  <div class="preview">
+    <canvas id="banner" width="2172" height="724" aria-label="Aperçu de la bannière avec ton pseudo et ton rôle"></canvas>
+  </div>
+
+  <form id="form" autocomplete="off">
+    <div class="field">
+      <label for="pseudo">Pseudo</label>
+      <input type="text" id="pseudo" maxlength="20" placeholder="Ton pseudo" value="AG11 Nova">
+    </div>
+    <div class="field">
+      <label for="role">Rôle</label>
+      <input type="text" id="role" maxlength="28" placeholder="Ton rôle" value="Joueur Fortnite">
+    </div>
+    <button type="submit" id="dl">Télécharger</button>
+  </form>
+  <p class="status" id="status" aria-live="polite"></p>
+</div>
+
+<script>
+(function () {
+  var canvas = document.getElementById("banner");
+  var ctx = canvas.getContext("2d");
+  var pseudoIn = document.getElementById("pseudo");
+  var roleIn = document.getElementById("role");
+  var form = document.getElementById("form");
+  var dlBtn = document.getElementById("dl");
+  var statusEl = document.getElementById("status");
+  var W = canvas.width, H = canvas.height;
+  var img = new Image();
+  var ready = false;
+
+  // Zone de texte : moitié droite, alignée à droite
+  var RIGHT = W - 130;
+  var MAX_W = W * 0.42;
+
+  function fitFont(text, weightFamily, start, min) {
+    var size = start;
+    ctx.font = weightFamily.replace("{s}", size);
+    while (ctx.measureText(text).width > MAX_W && size > min) {
+      size -= 4;
+      ctx.font = weightFamily.replace("{s}", size);
+    }
+    return size;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    if (ready) ctx.drawImage(img, 0, 0, W, H);
+    else { ctx.fillStyle = "#f6cfe3"; ctx.fillRect(0, 0, W, H); }
+
+    var pseudo = pseudoIn.value.trim().toUpperCase();
+    var role = roleIn.value.trim().toUpperCase();
+    if (!pseudo && !role) return;
+
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+
+    var pFont = '400 {s}px Anton, Impact, "Arial Narrow", sans-serif';
+    var rFont = '700 {s}px "Chakra Petch", "Segoe UI", sans-serif';
+    var pSize = pseudo ? fitFont(pseudo, pFont, 190, 70) : 0;
+    var rSize = role ? fitFont(role, rFont, 58, 26) : 0;
+
+    var gap = 26;
+    var total = pSize * 0.9 + (role ? gap + rSize : 0);
+    var top = H * 0.46 - total / 2;
+    var pBase = top + pSize * 0.9;
+
+    if (pseudo) {
+      ctx.font = pFont.replace("{s}", pSize);
+      // Lueur rose derrière le pseudo
+      ctx.save();
+      ctx.shadowColor = "rgba(255, 40, 150, 0.75)";
+      ctx.shadowBlur = 40;
+      ctx.fillStyle = "#2a0b1e";
+      ctx.fillText(pseudo, RIGHT, pBase);
+      ctx.restore();
+      ctx.fillStyle = "#24081a";
+      ctx.fillText(pseudo, RIGHT, pBase);
+    }
+
+    if (role) {
+      ctx.font = rFont.replace("{s}", rSize);
+      // Lettrage espacé
+      var spaced = role.split("").join(" ");
+      var rBase = (pseudo ? pBase + gap : top) + rSize;
+      var w = ctx.measureText(spaced).width;
+      // Barre rose derrière le rôle
+      var padX = 22, padY = 12;
+      ctx.fillStyle = "#ff2e98";
+      ctx.save();
+      ctx.shadowColor = "rgba(255, 46, 152, 0.6)";
+      ctx.shadowBlur = 24;
+      ctx.beginPath();
+      var bx = RIGHT - w - padX * 2 + padX, by = rBase - rSize * 0.82 - padY;
+      var bw = w + padX * 2, bh = rSize * 0.82 + padY * 2 + 6;
+      ctx.moveTo(bx + 18, by);
+      ctx.lineTo(bx + bw, by);
+      ctx.lineTo(bx + bw - 18 + 18, by + bh);
+      ctx.lineTo(bx, by + bh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(spaced, RIGHT + padX - padX, rBase);
+    }
+  }
+
+  img.onload = function () { ready = true; draw(); };
+  img.src = "banner.jpg";
+
+  pseudoIn.addEventListener("input", draw);
+  roleIn.addEventListener("input", draw);
+
+  // Attendre les polices avant de dessiner
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('400 100px Anton'),
+      document.fonts.load('700 40px "Chakra Petch"')
+    ]).then(draw, draw);
+  }
+  draw();
+
+  // Téléchargement
+  function setStatus(msg, ok) {
+    statusEl.textContent = msg;
+    statusEl.className = "status" + (ok ? " ok" : "");
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    draw();
+    var name = (pseudoIn.value.trim() || "joueur").replace(/[^\w\-]+/g, "_");
+    canvas.toBlob(function (blob) {
+      if (!blob) { setStatus("Impossible de créer l'image. Réessaie."); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "banniere-ag11-" + name + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      setStatus("Bannière téléchargée.", true);
+    }, "image/png");
+  });
+})();
+</script>
+</body>
+</html>
